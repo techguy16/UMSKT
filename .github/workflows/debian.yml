@@ -1,0 +1,83 @@
+name: C/C++ CI (Linux/Debian)
+
+on:
+  push:
+    branches:
+      - "*"
+  workflow_dispatch:
+
+jobs:
+  build-deb:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Source Tree
+        uses: actions/checkout@v2
+
+      - name: Set up Build Environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y dpkg-dev cmake build-essential
+        continue-on-error: true
+
+      - name: Compile umskt in Alpine Linux
+        run: |
+          # Install required packages for Alpine compilation
+          apk update
+          apk add build-base cmake git musl-dev openssl-dev openssl-libs-static
+
+          # Clone your repository or navigate to your project directory
+          # Replace 'YOUR_GIT_REPO_URL' with your actual repository URL if needed
+          git clone YOUR_GIT_REPO_URL
+
+          # Navigate to your project directory
+          cd YOUR_PROJECT_DIRECTORY
+
+          # Configure and build UMSKT for Alpine
+          mkdir -p build/alpine
+          cd build/alpine
+          cmake -D MUSL_STATIC=ON ..
+          make
+
+        working-directory: ${{ github.workspace }}
+
+      - name: Create Debian Package
+        run: |
+          # Create the directory structure
+          mkdir -p umskt-deb/DEBIAN
+          mkdir -p umskt-deb/usr/bin
+
+          # Copy the umskt executable from Alpine build to the package directory
+          cp build/alpine/umskt umskt-deb/usr/bin/
+
+          # Create the DEBIAN/control file
+          cat <<EOL > umskt-deb/DEBIAN/control
+          Package: umskt
+          Version: $(date +%Y%m%d)
+          Architecture: ${{ matrix.arch }}
+          Maintainer: UMSKT Contributors <coming@soon.com>
+          Installed-Size: 7192
+          Section: system
+          Priority: optional
+          Description: Universal MS Key Toolkit
+          EOL
+
+          # Create the DEBIAN/postinst file
+          cat <<EOL > umskt-deb/DEBIAN/postinst
+          #!/bin/sh
+          chmod +x /usr/bin/umskt
+          EOL
+
+          # Make the postinst script executable
+          chmod +x umskt-deb/DEBIAN/postinst
+
+          # Build the Debian package
+          dpkg-deb --build umskt-deb
+
+        working-directory: ${{ github.workspace }}
+
+      - name: Upload Debian Package
+        uses: actions/upload-artifact@v3.2.1
+        with:
+          name: umskt-deb-${{ matrix.arch }}
+          path: umskt-deb.deb
