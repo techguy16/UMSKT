@@ -73,11 +73,12 @@ jobs:
 
           # Build the Debian package
           dpkg-deb --build umskt-deb
+          mv umskt-deb.deb umskt-$(date +%Y%m%d).deb
 
         working-directory: ${{ github.workspace }}
 
       - name: Upload Debian Package
-        uses: actions/upload-artifact@v3.2.1
+        uses: actions/upload-artifact@v3.1.2
         with:
-          name: umskt-deb-${{ matrix.arch }}
-          path: umskt-deb.deb
+          name: umskt-debian-${{ matrix.arch }}
+          path: umskt-*-.deb
